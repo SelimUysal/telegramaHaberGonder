@@ -1,4 +1,5 @@
 import json
+import hashlib
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -18,7 +19,7 @@ CONFIG = {"enabled": True, "sources": [SOURCE], "time_zone": "Europe/Istanbul",
 
 class DigestTests(unittest.TestCase):
     def article(self, identifier="a"):
-        return Article(identifier, "Yapay Zekâ LLM haberi", "https://example.com/story", "Sample",
+        return Article(hashlib.sha256(identifier.encode("utf-8")).hexdigest(), "Yapay Zekâ LLM haberi", "https://example.com/story", "Sample",
                        "Bir yazılım haberi", NOW)
 
     def test_feed_rss(self):
