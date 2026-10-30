@@ -1,10 +1,19 @@
 {
+  "name": "telegram-news-aggregator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-source news collection and Telegram delivery",
+  "type": "commonjs",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "node src/index.js --once",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check src/pipeline.js && node --check src/index.js"
+  },
   "dependencies": {
     "axios": "^1.7.7",
     "cheerio": "^1.0.0",
-    "fs": "^0.0.1-security",
-    "puppeteer": "^23.6.1",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer": "^23.6.1"
   }
 }
