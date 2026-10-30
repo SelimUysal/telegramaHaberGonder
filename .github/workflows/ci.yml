@@ -19,3 +19,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run check
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s email_digest/tests -v
+      - run: python -c "from email_digest.main import load_config, DEFAULT_CONFIG; load_config(DEFAULT_CONFIG)"

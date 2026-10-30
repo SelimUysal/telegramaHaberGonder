@@ -1,0 +1,20 @@
+{
+  "enabled": true,
+  "time_zone": "Europe/Istanbul",
+  "lookback_hours": 36,
+  "max_items": 20,
+  "allow_undated": false,
+  "include_keywords": [],
+  "exclude_keywords": [],
+  "sources": [
+    {
+      "name": "Smithsonian Mind & Body",
+      "url": "https://www.smithsonianmag.com/category/mind-body/",
+      "mode": "smithsonian_category",
+      "lookback_hours": 1080,
+      "max_entries": 12,
+      "include_keywords": [],
+      "exclude_keywords": []
+    }
+  ]
+}
