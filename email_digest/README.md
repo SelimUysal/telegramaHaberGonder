@@ -66,3 +66,23 @@ SMTP acceptance does not guarantee the email reached the inbox. Retry and duplic
 - `tests/`: offline regression suite
 
 The Telegram implementation under `src/` is untouched.
+
+
+## Smithsonian Mind & Body pilot (2026-10-30)
+
+The pilot source is configured in `config.json` as:
+
+- URL: `https://www.smithsonianmag.com/category/mind-body/`
+- Collector mode: `smithsonian_category` (HTML links plus individual article metadata; not an unverified category RSS feed)
+- Freshness window: **45 days** per source; this does NOT limit fast RSS sources to the same window.
+- Maximum category articles inspected per run: 12.
+- Global topic filters are currently empty: all topics in this category are eligible.
+- **Example article for regression fixtures:** `This Lollipop Could Help Blind Women Independently Detect Pregnancy` (2026-10-06). This example is NOT hardcoded as a message to send.
+
+The HTML collector is best-effort. Sites can change templates, pagination, publication markup or return blocking responses; the available tests use offline fixtures, NOT proof that every current live Smithsonian article is extracted. If the HTML structure changes the collector will fail rather than quietly report zero results.
+
+### Fast-moving sources later
+
+Add future RSS/Atom sources with `"mode": "rss"` and for example `"lookback_hours": 36`; the Smithsonian category retains `"lookback_hours": 1080`. Every delivered article is identified by a normalized URL hash, not by calendar date alone. Collection frequency, the RSS feed's page depth, and durable state across GitHub Actions runs still determine whether high-volume feeds can be covered without gaps. For busy sources a daily run might miss older items pushed out of the feed; increase polling frequency and provide durable history before enabling them.
+
+**Operational status:** the pilot is configured for local preview, but automated production delivery remains disabled. The manual workflow and CI do not send emails. No scheduled run is enabled until the user supplies email configuration and persistent delivery state is wired and verified.
