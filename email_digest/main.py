@@ -6,7 +6,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .collector import fetch_feed, matches
+from .collector import matches
+from .category import fetch_source
 from .delivery import load_state, record_delivered, save_state, smtp_send
 
 DEFAULT_CONFIG = Path(__file__).with_name("config.json")
@@ -23,6 +24,9 @@ def load_config(filename: Path) -> dict:
     if not isinstance(sources, list) or len(sources) > 25:
         raise ValueError("sources must be an array with at most 25 entries")
     for source in sources:
+        mode = source.get("mode", "rss") if isinstance(source, dict) else None
+        if mode not in {"rss", "smithsonian_category"}:
+            raise ValueError("Unsupported source mode: " + str(mode))
         if (not isinstance(source, dict) or not isinstance(source.get("name"), str)
                 or not source["name"].strip() or not isinstance(source.get("url"), str)
                 or not source["url"].startswith("https://")):
@@ -31,6 +35,12 @@ def load_config(filename: Path) -> dict:
             if key in source and (not isinstance(source[key], list)
                                   or any(not isinstance(word, str) or not word.strip() for word in source[key])):
                 raise ValueError(key + " must be a list of nonempty strings")
+        if "lookback_hours" in source and (type(source["lookback_hours"]) is not int
+                                           or not 1 <= source["lookback_hours"] <= 24 * 365):
+            raise ValueError("Source lookback_hours must be between 1 and 8760")
+        if "max_entries" in source and (type(source["max_entries"]) is not int
+                                       or not 1 <= source["max_entries"] <= 30):
+            raise ValueError("Source max_entries must be between 1 and 30")
     for key in ("include_keywords", "exclude_keywords"):
         if not isinstance(config.get(key, []), list) or any(
             not isinstance(word, str) or not word.strip() for word in config.get(key, [])
@@ -48,7 +58,7 @@ def load_config(filename: Path) -> dict:
 
 
 def run(config: dict, *, send: bool = False, now: datetime | None = None,
-        state_file: Path = DEFAULT_STATE, fetcher=fetch_feed, sender=smtp_send) -> dict:
+        state_file: Path = DEFAULT_STATE, fetcher=fetch_source, sender=smtp_send) -> dict:
     now = now or datetime.now(timezone.utc)
     if not config["enabled"] or not config["sources"]:
         print("Daily digest not configured; no email sent.")
