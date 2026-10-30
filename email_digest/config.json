@@ -1,0 +1,10 @@
+{
+  "enabled": false,
+  "time_zone": "Europe/Istanbul",
+  "lookback_hours": 36,
+  "max_items": 20,
+  "allow_undated": false,
+  "include_keywords": [],
+  "exclude_keywords": [],
+  "sources": []
+}
