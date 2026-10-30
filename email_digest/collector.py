@@ -159,9 +159,9 @@ def fetch_feed(source: dict, timeout: float = 20.0) -> list[Article]:
 
 
 def matches(article: Article, config: dict, source: dict, now: datetime) -> bool:
-    lookback = timedelta(hours=config.get("lookback_hours", 36))
+    lookback = timedelta(hours=source.get("lookback_hours", config.get("lookback_hours", 36)))
     if article.published is None:
-        if not config.get("allow_undated", False):
+        if not source.get("allow_undated", config.get("allow_undated", False)):
             return False
     elif article.published > now + timedelta(minutes=10) or now - article.published > lookback:
         return False
