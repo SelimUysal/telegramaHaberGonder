@@ -1,124 +1,89 @@
-# 📰 Automated News Delivery to Telegram
+# Telegram News Aggregator
 
-A news aggregation and delivery prototype built with **Node.js and Python**. It collects headlines and article links from multiple news websites, saves the results as JSON files, and sends new headlines to a configured **Telegram chat or channel**.
+A multi-source news scraping and Telegram delivery pipeline built with Node.js. Reads headlines from Sözcü, Mashable Türkiye, Son Dakika and Yeni Akit. Source HTML structures change; some sources may need selector maintenance.
 
-[![Watch the walkthrough](https://img.shields.io/badge/Watch_Project_Walkthrough-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=R9HX1uPrGEg)
+**Status:** Refactored educational project. Use at your own risk. Publishing is OFF by default. There are no credentials in this repository.
 
-**🎥 [Watch the project presentation on YouTube](https://www.youtube.com/watch?v=R9HX1uPrGEg)**
+[Original project walkthrough](https://www.youtube.com/watch?v=R9HX1uPrGEg)
 
-> **Project status:** Educational prototype. This repository requires local configuration before it can run on another computer; it is not a ready-to-deploy Telegram bot.
+## Requirements
 
-## ✨ What It Does
+- Node.js 22 or newer, npm
+- Chromium prerequisites for Puppeteer if using browser-based sources
+- A Telegram bot token and chat/channel ID only when publishing
 
-1. **Collects news** from site-specific scrapers for Sözcü, Mashable, Son Dakika, and Akit.
-2. **Extracts headlines and links** from webpage content using Axios/Cheerio or Puppeteer.
-3. **Saves the results** into JSON files inside a local `haber/` directory.
-4. **Checks for previously sent headlines** using `sent_titles.txt` and submits new items to the Telegram Bot API.
-5. **Repeats the workflow:** `always.js` runs the scrapers sequentially, launches the Python sender, and schedules another cycle approximately 20 minutes after the sender exits.
+## Start safely
 
-```text
-News websites
-      |
-      v
-Node.js scrapers (Axios / Cheerio / Puppeteer)
-      |
-      v
-haber/haberler_1.json ... haberler_4.json
-      |
-      v
-Python sender (haber-gönder.py)
-      |
-      +--> sent_titles.txt (previously processed titles)
-      |
-      v
-Telegram Bot API --> Telegram chat / channel
-```
-
-## 🗂️ Repository Guide
-
-| File | Purpose |
-| --- | --- |
-| `news_Sozcu.js` | Scrapes Sözcü headlines and links |
-| `news_Mashable.js` | Scrapes Mashable content |
-| `news_SonDakika.js` | Browser-based Son Dakika scraping |
-| `news_Akit.js` | Browser-based Akit scraping |
-| `haber-gönder.py` | Reads news JSON files and sends messages to Telegram |
-| `always.js` | Runs the collection and sending scripts in sequence |
-| `package.json` | Lists the JavaScript dependencies |
-
-**Stack:** JavaScript, Node.js, Python, Axios, Cheerio, Puppeteer, Telegram Bot API, JSON.
-
-## 🚀 Running the Prototype Locally
-
-### Prerequisites
-
-- Node.js and npm
-- Python 3 and pip
-- A Telegram bot and the destination chat/channel identifier
-- A desktop environment capable of running browser-based Puppeteer scrapers
-
-### 1. Get the project
-
-```bash
+```sh
 git clone https://github.com/SelimUysal/telegramaHaberGonder.git
 cd telegramaHaberGonder
-npm install
-python -m pip install requests
+npm ci
+cp .env.example .env
+# Load your .env into your shell using your preferred environment manager.
+npm run once
 ```
 
-> This repository is **private**. Cloning requires an account with permission to access it.
+Node.js does not automatically load `.env` when running the `npm` scripts. On Node.js 22, a simple alternative is:
 
-### 2. Prepare the local environment
-
-Create a `haber` directory in the project root if it does not exist. The scrapers write files there, and the sender expects to read files named `haberler_1.json` through `haberler_4.json`.
-
-**Configuration required before running:**
-
-- Set up your own Telegram bot and target chat/channel in `haber-gönder.py`. **Never publish real bot tokens or credentials.**
-- Replace the machine-specific absolute Windows paths in `always.js` with paths valid on your computer (prefer paths resolved from the project directory).
-- Review the individual scrapers' website URLs and CSS selectors. Website layouts change over time, so extraction may need updating.
-
-### 3. Run and inspect the stages
-
-You can test the source-specific scripts individually:
-
-```bash
-node news_Sozcu.js
-node news_Mashable.js
-node news_SonDakika.js
-node news_Akit.js
+```sh
+node --env-file=.env src/index.js --once
 ```
 
-Inspect the generated files in `haber/`, then run the Telegram sender **only after you have configured a bot and verified the intended destination**:
+To preview without Telegram: leave `DRY_RUN=true`. This prints up to three examples per source but neither sends nor creates a delivery backlog.
 
-```bash
-python haber-gönder.py
+For real publishing, create a **new** bot token via BotFather (do not reuse historical keys), grant it posting permissions in the destination channel/chat, and set `DRY_RUN=false`, `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in your untracked local `.env`. Run:
+
+```sh
+node --env-file=.env src/index.js --once
+# Or continuously:
+node --env-file=.env src/index.js
 ```
 
-For the complete repeating workflow, adjust the paths in `always.js` and start:
+Set `NEWS_SOURCES` to a comma-separated subset of `sozcu,mashable,sondakika,akit`. To reduce browser requirements, start with `NEWS_SOURCES=sozcu,mashable`.
 
-```bash
-node always.js
+## Security and reliability
+
+- **No embedded secrets:** values come from environment variables. `.env` is ignored by Git. Rotate any bot token previously committed; removing it from new files does not revoke it.
+- **TLS verification and Chromium sandbox enabled by default.** Browsers in restrictive containers may fail to launch. Do not disable the sandbox on an untrusted host to bypass a setup issue.
+- **Durable queue:** pending items persist in `data/state.json`; a message is marked sent only after Telegram acknowledges success. Failed requests remain pending for later retries.
+- **At-least-once delivery:** if a process terminates just after Telegram accepts a message but before writing state, duplicate delivery is possible.
+- **Single-process lock:** `data/state.json.lock` avoids simultaneous processes writing state. If interrupted abnormally, check the process is stopped before removing the stale lock.
+- **Dry-run does not persist state.** Test with it first.
+- **Bounded collection and dispatch:** request timeouts, a maximum pending backlog, a maximum messages per cycle, and minimum delay between messages.
+- **Source outages are isolated:** one failed website does not prevent others from being collected. Watch logs for `source_failed`; empty selectors are treated as failures rather than successful empty results.
+- **Privacy:** runtime state and `.env` are not tracked by Git. Do not publish bot tokens in issues, logs or screenshots.
+- **Respect source terms and robots policies.** Prefer official RSS/APIs when available. Do not use this tool to bypass site access restrictions.
+
+## Configuration
+
+| Name | Default | Meaning |
+|---|---|---|
+| `DRY_RUN` | `true` | Only literal `false` enables sending |
+| `TELEGRAM_BOT_TOKEN` | empty | New BotFather token |
+| `TELEGRAM_CHAT_ID` | empty | Destination chat/channel |
+| `NEWS_SOURCES` | all four | Comma-separated sources |
+| `POLL_INTERVAL_MINUTES` | `20` | Scheduling interval |
+| `REQUEST_TIMEOUT_MS` | `25000` | Request timeout |
+| `MAX_SEND_PER_CYCLE` | `15` | Limit items per cycle |
+| `MAX_PENDING_ITEMS` | `500` | Queue size cap |
+| `SEND_DELAY_MS` | `1200` | Minimum interval after successful send |
+| `STATE_FILE` | `data/state.json` | Persistent state file |
+
+## Development and tests
+
+```sh
+npm ci
+npm test
+npm run check
 ```
 
-Stop the process with `Ctrl+C`. Because the orchestrator uses fixed Windows paths in its current form, **it will not work unchanged on a different computer**.
+`src/pipeline.js` provides selectors, URL normalization, collection, queue and transport; `src/index.js` provides the scheduler. `tests/pipeline.test.js` uses fixtures and simulated failures; no Telegram bot account is required.
 
-## 🔐 Security & Reliability Notes
+The legacy Node/Python prototype was retained in Git history. The new implementation uses Node.js as the single runtime. Its functionality must be assessed against live website updates before treating it as production-ready.
 
-This code is a learning prototype and should be reviewed before deployment:
+## Known limitations
 
-- **Secrets:** The current sender stores Telegram configuration in source code. Move tokens and chat identifiers to environment variables and rotate any token that has been exposed before sharing the repository publicly.
-- **HTTPS verification:** Some requests disable TLS certificate verification (`verify=False` or `rejectUnauthorized: false`). Restore certificate verification for secure use.
-- **Duplicate handling:** Headlines are tracked in `sent_titles.txt`, but the current logic is not a transactional delivery guarantee; failed sends may still leave entries in the local history file.
-- **Scraping compatibility:** Selectors, consent dialogs, anti-bot measures, and site terms can change. Use respectful request rates and check website rules.
-- **Local setup:** This project currently has machine-specific paths, and browser-based scrapers may need manual troubleshooting.
-
-## 📺 Project Walkthrough
-
-A video demonstration and explanation of the original project is available here:
-
-**[Watch on YouTube](https://www.youtube.com/watch?v=R9HX1uPrGEg)**
-
----
-
-**Purpose:** Explore web scraping, data processing, task orchestration, and Telegram message automation through a practical end-to-end project.
+- Site CSS selectors can break when publishers redesign their pages.
+- This file-backed queue is intended for one process and small workloads, not high-availability distributed delivery.
+- Automatic retries cannot guarantee exactly-once message delivery.
+- No unattended publishing is configured; no GitHub Actions workflow sends Telegram messages.
