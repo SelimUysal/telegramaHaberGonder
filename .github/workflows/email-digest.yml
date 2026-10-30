@@ -1,0 +1,32 @@
+name: Daily email digest
+on:
+  workflow_dispatch:
+  # Scheduling is intentionally disabled until sources and SMTP are configured.
+  # On the default branch only, enable a schedule after testing.
+  # schedule:
+  #   - cron: '17 6 * * *' # 09:17 Europe/Istanbul (UTC+3)
+permissions:
+  contents: read
+concurrency:
+  group: personal-email-digest
+  cancel-in-progress: false
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SMTP_USER: ${{ secrets.DIGEST_SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.DIGEST_SMTP_PASSWORD }}
+      EMAIL_TO: ${{ secrets.DIGEST_EMAIL_TO }}
+      SMTP_HOST: smtp.gmail.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check feed and email settings
+        run: |
+          python -m unittest discover -s email_digest/tests -v
+          python -m email_digest
+      # Intentionally no send step until the user adds sources and GitHub secrets.
+      # Never print SMTP_PASSWORD or EMAIL_TO in workflow logs.
